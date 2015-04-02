@@ -1,0 +1,257 @@
+{
+	"AWSTemplateFormatVersion" : "2010-09-09",
+
+	"Description" : "AWS CloudFormation Template that creates a fixed-size AutoScaling Group using CentOS 7 and bootstraps it to connect to a Chef server.",
+
+	"Parameters" : {
+		"InstanceCount" : {
+			"Description" : "Number of ec2 instances to provision in the AutoScaling Group",
+			"Type" : "Number",
+			"Default" : "1"
+		},
+		"InstanceType" : {
+			"Description" : "EC2 instance type",
+			"Type" : "String",
+			"Default" : "t2.micro",
+			"AllowedValues" : [ "t2.micro", "t2.small", "t2.medium", "m3.medium", 
+													"m3.large", "m3.xlarge", "m3.2xlarge", "c3.large", 
+													"c3.xlarge", "c3.2xlarge", "c3.4xlarge", "c3.8xlarge", 
+													"c4.large", "c4.xlarge", "c4.2xlarge", "c4.4xlarge", 
+													"c4.8xlarge", "g2.2xlarge", "r3.large", "r3.xlarge", 
+													"r3.2xlarge", "r3.4xlarge", "r3.8xlarge", "i2.xlarge", 
+													"i2.2xlarge", "i2.4xlarge", "i2.8xlarge", "hi1.4xlarge", 
+													"hs1.8xlarge", "cr1.8xlarge", "cc2.8xlarge", "cg1.4xlarge"]
+		},
+		"EC2SSHKeyPair" : {
+			"Description" : "Name of an existing EC2 KeyPair",
+			"Type" : "AWS::EC2::KeyPair::KeyName",
+			"Default" : ""
+		},
+		"AvailabilityZones" : {
+			"Description" : "Comma delimited list of availability zones to launch instances into",
+			"Type" : "List<String>",
+			"Default" : ""
+		},
+		"VPCSubnetIDs" : {
+			"Description" : "Comma delimited list of subnet IDs to launch instances into",
+			"Type" : "List<AWS::EC2::Subnet::Id>",
+			"Default" : ""
+		},
+		"VPCSecurityGroup" : {
+			"Description" : "VPC Security Group ID to launch instances into",
+			"Type" : "AWS::EC2::SecurityGroup::Id",
+			"Default" : ""
+		},
+		"IAMRole" : {
+			"Description" : "IAMRole with access to S3 bucket containing Chef validation and data bag encryption keys",
+			"Type" : "String",
+			"Default" : ""
+		},
+		"ChefS3Bucket" : {
+			"Description" : "S3 Bucket that contains the Chef validation key. Should match the bucket specified in ChefValidationKeyURL",
+			"Type" : "String",
+			"Default" : ""
+		},
+		"ChefServerURL" : {
+			"Description" : "URL of Chef Server",
+			"Type" : "String",
+			"Default" : ""
+		},
+		"ChefValidationClient" : {
+			"Description" : "Chef validation client name",
+			"Type" : "String",
+			"Default" : ""
+		},
+		"ChefValidationKeyURL" : {
+			"Description" : "S3 http URL for Chef validation key",
+			"Type" : "String",
+			"Default" : ""
+		},
+		"ChefDataBagKeyURL" : {
+			"Description" : "S3 http URL for Chef encrypted databag key",
+			"Type" : "String",
+			"Default" : ""
+		},
+		"ChefEnvironment" : {
+			"Description" : "Name of Chef environment",
+			"Type" : "String",
+			"Default" : ""
+		},
+		"ChefRunList" : {
+			"Description" : "Comma separated list of Chef run list items",
+			"Type" : "List<String>",
+			"Default" : ""
+		}
+	},
+
+	"Mappings" : {
+    "AWSInstanceType2Arch" : {
+      "t1.micro"    : { "Arch" : "PV64"   },
+      "t2.micro"    : { "Arch" : "HVM64"  },
+      "t2.small"    : { "Arch" : "HVM64"  },
+      "t2.medium"   : { "Arch" : "HVM64"  },
+      "m1.small"    : { "Arch" : "PV64"   },
+      "m1.medium"   : { "Arch" : "PV64"   },
+      "m1.large"    : { "Arch" : "PV64"   },
+      "m1.xlarge"   : { "Arch" : "PV64"   },
+      "m2.xlarge"   : { "Arch" : "PV64"   },
+      "m2.2xlarge"  : { "Arch" : "PV64"   },
+      "m2.4xlarge"  : { "Arch" : "PV64"   },
+      "m3.medium"   : { "Arch" : "HVM64"  },
+      "m3.large"    : { "Arch" : "HVM64"  },
+      "m3.xlarge"   : { "Arch" : "HVM64"  },
+      "m3.2xlarge"  : { "Arch" : "HVM64"  },
+      "c1.medium"   : { "Arch" : "PV64"   },
+      "c1.xlarge"   : { "Arch" : "PV64"   },
+      "c3.large"    : { "Arch" : "HVM64"  },
+      "c3.xlarge"   : { "Arch" : "HVM64"  },
+      "c3.2xlarge"  : { "Arch" : "HVM64"  },
+      "c3.4xlarge"  : { "Arch" : "HVM64"  },
+      "c3.8xlarge"  : { "Arch" : "HVM64"  },
+      "c4.large"    : { "Arch" : "HVM64"  },
+      "c4.xlarge"   : { "Arch" : "HVM64"  },
+      "c4.2xlarge"  : { "Arch" : "HVM64"  },
+      "c4.4xlarge"  : { "Arch" : "HVM64"  },
+      "c4.8xlarge"  : { "Arch" : "HVM64"  },
+      "g2.2xlarge"  : { "Arch" : "HVMG2"  },
+      "r3.large"    : { "Arch" : "HVM64"  },
+      "r3.xlarge"   : { "Arch" : "HVM64"  },
+      "r3.2xlarge"  : { "Arch" : "HVM64"  },
+      "r3.4xlarge"  : { "Arch" : "HVM64"  },
+      "r3.8xlarge"  : { "Arch" : "HVM64"  },
+      "i2.xlarge"   : { "Arch" : "HVM64"  },
+      "i2.2xlarge"  : { "Arch" : "HVM64"  },
+      "i2.4xlarge"  : { "Arch" : "HVM64"  },
+      "i2.8xlarge"  : { "Arch" : "HVM64"  },
+      "hi1.4xlarge" : { "Arch" : "HVM64"  },
+      "hs1.8xlarge" : { "Arch" : "HVM64"  },
+      "cr1.8xlarge" : { "Arch" : "HVM64"  },
+      "cc2.8xlarge" : { "Arch" : "HVM64"  }
+    },
+    "AWSRegionArch2AMI" : {
+      "us-east-1"        : {"PV64" : "NOT_SUPPORTED", "HVM64" : "ami-96a818fe", "HVMG2" : "NOT_SUPPORTED"},
+      "us-west-2"        : {"PV64" : "NOT_SUPPORTED", "HVM64" : "ami-c7d092f7", "HVMG2" : "NOT_SUPPORTED"},
+      "us-west-1"        : {"PV64" : "NOT_SUPPORTED", "HVM64" : "ami-6bcfc42e", "HVMG2" : "NOT_SUPPORTED"},
+      "eu-west-1"        : {"PV64" : "NOT_SUPPORTED", "HVM64" : "ami-4ac6653d", "HVMG2" : "NOT_SUPPORTED"},
+      "eu-central-1"     : {"PV64" : "NOT_SUPPORTED", "HVM64" : "ami-c8b587d5", "HVMG2" : "NOT_SUPPORTED"},
+      "ap-northeast-1"   : {"PV64" : "NOT_SUPPORTED", "HVM64" : "ami-25436924", "HVMG2" : "NOT_SUPPORTED"},
+      "ap-southeast-1"   : {"PV64" : "NOT_SUPPORTED", "HVM64" : "ami-0aaf8858", "HVMG2" : "NOT_SUPPORTED"},
+      "ap-southeast-2"   : {"PV64" : "NOT_SUPPORTED", "HVM64" : "ami-ef5133d5", "HVMG2" : "NOT_SUPPORTED"},
+      "sa-east-1"        : {"PV64" : "NOT_SUPPORTED", "HVM64" : "ami-bf9520a2", "HVMG2" : "NOT_SUPPORTED"},
+      "cn-north-1"       : {"PV64" : "NOT_SUPPORTED", "HVM64" : "NOT_SUPPORTED", "HVMG2" : "NOT_SUPPORTED"}
+    }
+  },
+
+	"Resources" : {
+		"ChefLaunchConfig" : {
+			"Type" : "AWS::AutoScaling::LaunchConfiguration",
+			"Metadata" : {
+				"AWS::CloudFormation::Init" : {
+					"configSets" : {
+						"ChefConfigSet" : [ "install_chef" ]
+					},
+					"install_chef" : {
+						"packages" : {
+							"rpm" : {
+								"chef" : "https://opscode-omnibus-packages.s3.amazonaws.com/el/6/x86_64/chef-11.16.4-1.el6.x86_64.rpm"
+							},
+							"yum" : {
+								"wget" : []
+							}
+						},
+						"files" : {
+							"/etc/chef/client.rb" : {
+								"content" : { "Fn::Join": [ "", [
+								"log_level :info\n",
+								"log_location STDOUT\n",
+								"chef_server_url '", { "Ref" : "ChefServerURL" }, "'\n",
+								"validation_client_name '", { "Ref" : "ChefValidationClient" }, "'\n",
+								"validation_key '/etc/chef/validation.pem'\n",
+								"client_key '/etc/chef/client.pem'\n",
+								"environment '", { "Ref" : "ChefEnvironment" }, "'"
+								]]},
+								"owner" : "root",
+								"group" : "root",
+								"mode"  : "000644"
+
+							},
+							"/etc/chef/validation.pem" : {
+								"source" : { "Ref" : "ChefValidationKeyURL" },
+								"owner" : "root",
+								"group" : "root",
+								"mode"  : "000600"
+							},
+							"/etc/chef/encrypted_data_bag_secret" : {
+								"source" : { "Ref" : "ChefDataBagKeyURL" },
+								"owner" : "root",
+								"group" : "root",
+								"mode"  : "000600"
+							},
+							"/etc/chef/first-boot.json" : {
+								"content" : { 
+									"run_list" : { "Ref" : "ChefRunList" },
+								"owner" : "root",
+								"group" : "root",
+								"mode"  : "000644"
+								}
+							},
+							"/etc/chef/ohai/hints/README" : {
+								"content" : "Readme",
+								"owner" : "root",
+								"group" : "root",
+								"mode"  : "000644"
+							}
+						},
+						"commands" : {
+							"prime_ec2_ohai_hints" : {
+								"command" : "touch /etc/chef/ohai/hints/ec2.json"
+							},
+							"run_chef_client" : {
+								"command" : "chef-client -j /etc/chef/first-boot.json"
+							}
+						}
+					}
+				},
+				"AWS::CloudFormation::Authentication": {
+					"ChefS3IAMRole" : {
+						"type" : "S3",
+						"buckets" : [ { "Ref" : "ChefS3Bucket" } ],
+						"roleName" : { "Ref" : "IAMRole" }
+					}
+				}
+			},
+			"Properties" : {
+				"ImageId" : { "Fn::FindInMap" : [ "AWSRegionArch2AMI", { "Ref" : "AWS::Region" }, "HVM64" ] },
+				"InstanceType" : { "Ref" : "InstanceType" },
+				"KeyName" : { "Ref" : "EC2SSHKeyPair" },
+				"SecurityGroups" : [{ "Ref" : "VPCSecurityGroup" }],
+				"IamInstanceProfile" : { "Ref" : "IAMRole" },
+				"UserData" : { "Fn::Base64" : { "Fn::Join" : ["", [
+                	"#!/bin/bash -xe\n",
+                	"easy_install https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-latest.tar.gz\n",
+
+            	     "cfn-init -v ",
+                   "         --stack ", { "Ref" : "AWS::StackName" },
+                   "         --resource ChefLaunchConfig ",
+                   "         --configsets ChefConfigSet ",
+                   "         --region ", { "Ref" : "AWS::Region" }, "\n",
+
+                   "cfn-signal -e $? ",
+                   "         --stack ", { "Ref" : "AWS::StackName" },
+                   "         --resource ChefConfigSet ",
+                   "         --region ", { "Ref" : "AWS::Region" }, "\n"
+                ]]}}
+			}
+		},
+		"ChefAutoScalingGroup" : {
+			"Type" : "AWS::AutoScaling::AutoScalingGroup",
+			"Properties" : {
+				"AvailabilityZones" : { "Ref" : "AvailabilityZones" },
+				"LaunchConfigurationName" : { "Ref" : "ChefLaunchConfig" },
+				"MinSize" : { "Ref" : "InstanceCount" },
+				"MaxSize" : { "Ref" : "InstanceCount" },
+				"VPCZoneIdentifier" : { "Ref" : "VPCSubnetIDs" }
+			}
+		}
+	}
+}

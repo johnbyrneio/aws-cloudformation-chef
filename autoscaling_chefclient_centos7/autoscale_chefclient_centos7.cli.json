@@ -1,0 +1,83 @@
+{
+    "StackName": "autoscale_chef_client",
+    "Parameters": [
+        {
+            "ParameterKey": "InstanceCount",
+            "ParameterValue": "FILL_ME_IN",
+            "UsePreviousValue": true
+        },
+        {
+            "ParameterKey": "InstanceType",
+            "ParameterValue": "FILL_ME_IN",
+            "UsePreviousValue": true
+        },
+        {
+            "ParameterKey": "EC2SSHKeyPair",
+            "ParameterValue": "FILL_ME_IN",
+            "UsePreviousValue": true
+        },
+        {
+            "ParameterKey": "AvailabilityZones",
+            "ParameterValue": "FILL_ME_IN",
+            "UsePreviousValue": true
+        },       
+        {
+            "ParameterKey": "VPCSubnetIDs",
+            "ParameterValue": "FILL_ME_IN",
+            "UsePreviousValue": true
+        },
+        {
+            "ParameterKey": "VPCSecurityGroup",
+            "ParameterValue": "FILL_ME_IN",
+            "UsePreviousValue": true
+        },
+        {
+            "ParameterKey": "IAMRole",
+            "ParameterValue": "FILL_ME_IN",
+            "UsePreviousValue": true
+        },
+        {
+            "ParameterKey": "ChefS3Bucket",
+            "ParameterValue": "FILL_ME_IN",
+            "UsePreviousValue": true
+        },
+        {
+            "ParameterKey": "ChefServerURL",
+            "ParameterValue": "FILL_ME_IN",
+            "UsePreviousValue": true
+        },
+        {
+            "ParameterKey": "ChefValidationClient",
+            "ParameterValue": "FILL_ME_IN",
+            "UsePreviousValue": true
+        },
+        {
+            "ParameterKey": "ChefValidationKeyURL",
+            "ParameterValue": "FILL_ME_IN",
+            "UsePreviousValue": true
+        },
+        {
+            "ParameterKey": "ChefDataBagKeyURL",
+            "ParameterValue": "FILL_ME_IN",
+            "UsePreviousValue": true
+        },
+        {
+            "ParameterKey": "ChefEnvironment",
+            "ParameterValue": "FILL_ME_IN",
+            "UsePreviousValue": true
+        },
+        {
+            "ParameterKey": "ChefRunList",
+            "ParameterValue": "FILL_ME_IN",
+            "UsePreviousValue": true
+        }
+    ],
+    "TimeoutInMinutes": 20,
+    "OnFailure": "ROLLBACK",
+    "Tags": [
+        {
+            "Key": "Name",
+            "Value": "autoscale_chef_client"
+        }
+    ]
+}
